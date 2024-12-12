@@ -1,0 +1,135 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import StandardScaler
+
+# Set page config
+st.set_page_config(page_title="Heart Disease Prediction", layout="wide")
+
+# Title and description
+st.title("Heart Disease Prediction System")
+st.write("This application predicts the presence of heart disease based on patient data.")
+
+# Create two columns for input
+col1, col2 = st.columns(2)
+
+with col1:
+    age = st.number_input("Age", min_value=20, max_value=100, value=50)
+    sex = st.selectbox("Sex", ["Male", "Female"])
+    cp = st.selectbox("Chest Pain Type", 
+                     ["Typical Angina", 
+                      "Atypical Angina", 
+                      "Non-anginal Pain", 
+                      "Asymptomatic"])
+    trestbps = st.number_input("Resting Blood Pressure (mm Hg)", 
+                              min_value=90, max_value=200, value=120)
+    chol = st.number_input("Cholesterol (mg/dl)", 
+                          min_value=100, max_value=600, value=200)
+    fbs = st.selectbox("Fasting Blood Sugar > 120 mg/dl", ["No", "Yes"])
+
+with col2:
+    restecg = st.selectbox("Resting ECG Results", 
+                          ["Normal", 
+                           "ST-T Wave Abnormality", 
+                           "Left Ventricular Hypertrophy"])
+    thalach = st.number_input("Maximum Heart Rate", 
+                             min_value=70, max_value=220, value=150)
+    exang = st.selectbox("Exercise Induced Angina", ["No", "Yes"])
+    oldpeak = st.number_input("ST Depression Induced by Exercise", 
+                             min_value=0.0, max_value=6.2, value=0.0)
+    slope = st.selectbox("Slope of Peak Exercise ST Segment", 
+                        ["Upsloping", "Flat", "Downsloping"])
+    ca = st.number_input("Number of Major Vessels Colored by Fluoroscopy", 
+                        min_value=0, max_value=3, value=0)
+    thal = st.selectbox("Thalassemia", 
+                       ["Normal", "Fixed Defect", "Reversible Defect"])
+
+def preprocess_input():
+    # Sex
+    sex_n = 1 if sex == "Male" else 0
+    
+    # Chest Pain Type
+    cp_map = {"Typical Angina": 1, "Atypical Angina": 2, 
+              "Non-anginal Pain": 3, "Asymptomatic": 4}
+    cp_n = cp_map[cp]
+    
+    # Fasting Blood Sugar
+    fbs_n = 1 if fbs == "Yes" else 0
+    
+    # Resting ECG
+    restecg_map = {"Normal": 0, "ST-T Wave Abnormality": 1, 
+                   "Left Ventricular Hypertrophy": 2}
+    restecg_n = restecg_map[restecg]
+    
+    # Exercise Induced Angina
+    exang_n = 1 if exang == "Yes" else 0
+    
+    # Slope
+    slope_map = {"Upsloping": 1, "Flat": 2, "Downsloping": 3}
+    slope_n = slope_map[slope]
+    
+    # Thalassemia
+    thal_map = {"Normal": 3, "Fixed Defect": 6, "Reversible Defect": 7}
+    thal_n = thal_map[thal]
+    
+    # Create input array
+    input_data = np.array([[age, sex_n, cp_n, trestbps, chol, fbs_n, 
+                           restecg_n, thalach, exang_n, oldpeak, 
+                           slope_n, ca, thal_n]])
+    
+    return input_data
+
+# Create prediction button
+if st.button("Predict"):
+    try:
+        # Load the model
+        model = load_model("heart_disease_neural_network_model.keras")
+        
+        # Preprocess input
+        input_data = preprocess_input()
+        
+        # Create and fit scaler with input data range
+        scaler = StandardScaler()
+        input_scaled = scaler.fit_transform(input_data)
+        
+        # Make prediction
+        prediction = model.predict(input_scaled)
+        prediction = prediction.flatten()[0]  # Get single value from prediction
+        
+        # Display result
+        st.header("Prediction Result")
+        if prediction > 1:
+            st.error("✅ No Heart Disease Detected")
+            st.write(f"Probability of Heart Disease: {prediction:.2%}")
+        else:
+            st.success("⚠️ Heart Disease Detected")
+            st.write(f"Probability of  Heart Disease: {1-prediction:.2%}")
+            
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        st.write("Please ensure all inputs are valid and try again.")
+
+# Add information about the features
+with st.expander("Feature Information"):
+    st.write("""
+    - **Age**: Age in years
+    - **Sex**: Gender of the patient
+    - **Chest Pain Type**: Type of chest pain experienced
+    - **Resting Blood Pressure**: Blood pressure (mm Hg) while resting
+    - **Cholesterol**: Serum cholesterol in mg/dl
+    - **Fasting Blood Sugar**: Whether fasting blood sugar > 120 mg/dl
+    - **Resting ECG**: Results of resting electrocardiogram
+    - **Maximum Heart Rate**: Maximum heart rate achieved
+    - **Exercise Induced Angina**: Whether angina was induced by exercise
+    - **ST Depression**: ST depression induced by exercise relative to rest
+    - **Slope**: Slope of the peak exercise ST segment
+    - **Number of Vessels**: Number of major vessels colored by fluoroscopy
+    - **Thalassemia**: Type of thalassemia
+    """)
+
+# Add footer
+st.markdown("---")
+st.markdown("Heart Disease Prediction System - Created with Streamlit")
+
+
